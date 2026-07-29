@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\ADR.ico</ApplicationIcon>
+    <AssemblyName>DurabilityTestingSystem</AssemblyName>
+    <RootNamespace>DurabilityTestingSystem</RootNamespace>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <!--
+      The workspace also contains publish/output copies of the project.  Do not let
+      the SDK's recursive **/*.cs glob compile generated AssemblyInfo files from
+      those copies; only the application source folders below are source inputs.
+    -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Compile Include="Data\**\*.cs" />
+    <Compile Include="Infrastructure\**\*.cs" />
+    <Compile Include="Models\**\*.cs" />
+    <Compile Include="UI\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="system-profile.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\ADR.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="HardwareAdapter.Template\**" />
+  </ItemGroup>
+
+</Project>
