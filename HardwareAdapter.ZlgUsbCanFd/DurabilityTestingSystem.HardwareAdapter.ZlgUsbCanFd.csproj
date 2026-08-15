@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <AssemblyName>DurabilityTestingSystem.HardwareAdapter.ZlgUsbCanFd</AssemblyName>
+    <RootNamespace>DurabilityTestingSystem.HardwareAdapter.ZlgUsbCanFd</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    周立功原厂运行库由现场安装包提供，不随公开源码仓库分发。
+    本地存在 SDK 时才复制到输出目录；缺少 SDK 仍可编译 Demo/接口代码。
+  -->
+  <ItemGroup Condition="Exists('Vendor\\ZLG\\x64\\zlgcan.dll')">
+    <ProjectReference Include="..\DurabilityTestingSystem.Contracts\DurabilityTestingSystem.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Vendor\ZLG\zlgcan License.txt">
+      <Link>THIRD-PARTY-NOTICES\zlgcan License.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Vendor\ZLG\x64\zlgcan.dll">
+      <Link>zlgcan.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Vendor\ZLG\x64\kerneldlls\**\*">
+      <Link>kerneldlls\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+</Project>

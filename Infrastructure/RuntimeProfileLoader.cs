@@ -20,13 +20,16 @@ public static class RuntimeProfileLoader
     {
         if (!File.Exists(ProfilePath))
         {
-            var profile = new SystemProfile();
-            File.WriteAllText(ProfilePath, JsonSerializer.Serialize(profile, JsonOptions));
-            return profile;
+            var newProfile = new SystemProfile();
+            File.WriteAllText(ProfilePath, JsonSerializer.Serialize(newProfile, JsonOptions));
+            return newProfile;
         }
 
         var json = File.ReadAllText(ProfilePath);
-        return JsonSerializer.Deserialize<SystemProfile>(json, JsonOptions) ?? new SystemProfile();
+        var profile = JsonSerializer.Deserialize<SystemProfile>(json, JsonOptions) ?? new SystemProfile();
+        profile.Qualification ??= new HardwareQualification();
+        if (profile.SchemaVersion <= 0) profile.SchemaVersion = 1;
+        return profile;
     }
 
     public static IHardwarePlatform LoadHardwarePlatform(SystemProfile profile)
@@ -58,4 +61,3 @@ public static class RuntimeProfileLoader
         }
     }
 }
-

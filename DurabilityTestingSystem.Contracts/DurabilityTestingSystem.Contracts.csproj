@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblyName>DurabilityTestingSystem.Contracts</AssemblyName>
+    <RootNamespace>DurabilityTestingSystem</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Models\SystemModels.cs" Link="Models\SystemModels.cs" />
+    <Compile Include="..\Infrastructure\HardwareInterfaces.cs" Link="Infrastructure\HardwareInterfaces.cs" />
+    <Compile Include="..\Infrastructure\HardwarePlatform.cs" Link="Infrastructure\HardwarePlatform.cs" />
+  </ItemGroup>
+</Project>

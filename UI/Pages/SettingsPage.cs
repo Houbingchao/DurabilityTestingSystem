@@ -21,33 +21,48 @@ public sealed class SettingsPage : UserControl
     private readonly NumericUpDown _pullTime;
     private readonly NumericUpDown _holdTime;
     private readonly NumericUpDown _returnTime;
+    private readonly NumericUpDown _actionInterval;
     private readonly NumericUpDown _sampleInterval;
     private readonly ComboBox _canDevice;
+    private readonly NumericUpDown _canDeviceIndex;
+    private readonly ComboBox _canBusMode;
     private readonly ComboBox _baudRate;
-    private readonly NumericUpDown _nodeId;
+    private readonly ComboBox _canDataBaudRate;
+    private readonly ComboBox _canFdStandard;
+    private readonly ComboBox _canTermination;
+    private readonly NumericUpDown _canTransmitTimeout;
     private readonly NumericUpDown _motorSpeed;
     private readonly NumericUpDown _motorAcceleration;
     private readonly ComboBox _controlMode;
     private readonly NumericUpDown _communicationTimeout;
     private readonly ComboBox _autoReconnect;
-    private readonly TextBox _moduleIp;
-    private readonly NumericUpDown _modulePort;
+    private readonly ComboBox _protocolMode;
+    private readonly TextBox _dbcFilePath;
+    private readonly ComboBox _analogDevice;
+    private readonly ComboBox _terminalBoard;
+    private readonly NumericUpDown _analogBoardId;
+    private readonly ComboBox _analogInputMode;
+    private readonly NumericUpDown _analogScanRate;
+    private readonly NumericUpDown _analogReadTimeout;
     private readonly NumericUpDown _sensorRange;
     private readonly ComboBox _signalType;
+    private readonly ComboBox _currentSignalType;
+    private readonly ComboBox _voltageSignalType;
     private readonly NumericUpDown _filterWindow;
-    private readonly ComboBox _forceChannel;
-    private readonly ComboBox _currentChannel;
-    private readonly ComboBox _voltageChannel;
+    private readonly ComboBox _displacementSignalType;
+    private readonly NumericUpDown _displacementSensorRange;
     private readonly NumericUpDown _currentSensorRange;
     private readonly NumericUpDown _voltageSensorRange;
     private readonly NumericUpDown _maxForce;
     private readonly NumericUpDown _maxCurrent;
     private readonly NumericUpDown _maxVoltage;
+    private readonly NumericUpDown _maxDisplacement;
+    private readonly NumericUpDown _resetTolerance;
     private readonly NumericUpDown _overLimitDelay;
-    private readonly ComboBox _positiveLimitInput;
-    private readonly ComboBox _negativeLimitInput;
     private readonly ComboBox _safetyDoorInput;
     private readonly ComboBox _overLimitAction;
+    private readonly DataGridView _stationGrid;
+    private readonly TableLayoutPanel _content;
 
     public event EventHandler<TestSettings>? SettingsSaved;
 
@@ -66,36 +81,50 @@ public sealed class SettingsPage : UserControl
         _pullTime = UiFactory.Numeric(2, .1m, 120, 1, .1m);
         _holdTime = UiFactory.Numeric(1, 0, 120, 1, .1m);
         _returnTime = UiFactory.Numeric(2, .1m, 120, 1, .1m);
+        _actionInterval = UiFactory.Numeric(.5m, 0, 120, 1, .1m);
         _sampleInterval = UiFactory.Numeric(100, 50, 5000, 0, 10);
 
-        _canDevice = UiFactory.Combo(["USBCAN-2E-U / 通道 0", "PCIe-CAN / 通道 0", "虚拟 CAN / Demo"], "USBCAN-2E-U / 通道 0");
-        _baudRate = UiFactory.Combo(["125 kbps", "250 kbps", "500 kbps", "1000 kbps"], "500 kbps");
-        _nodeId = UiFactory.Numeric(1, 1, 127);
+        _canDevice = UiFactory.Combo([CanHardwareBaseline.DisplayName], CanHardwareBaseline.DisplayName);
+        _canDeviceIndex = UiFactory.Numeric(0, 0, 31);
+        _canBusMode = UiFactory.Combo(["CAN 2.0", "CAN FD"], "CAN 2.0");
+        _baudRate = UiFactory.Combo(CanHardwareBaseline.SupportedArbitrationBaudRates.Select(FormatBaudRate), "500 kbps");
+        _canDataBaudRate = UiFactory.Combo(CanHardwareBaseline.SupportedDataBaudRates.Select(FormatBaudRate), "2 Mbps");
+        _canFdStandard = UiFactory.Combo(["ISO", "Non-ISO"], "ISO");
+        _canTermination = UiFactory.Combo(["禁用（默认）", "启用 120 Ω"], "禁用（默认）");
+        _canTransmitTimeout = UiFactory.Numeric(100, 1, 4000, 0, 10);
         _motorSpeed = UiFactory.Numeric(120, 1, 3000, 1, 10);
         _motorAcceleration = UiFactory.Numeric(300, 1, 10000, 1, 10);
         _controlMode = UiFactory.Combo(["位置模式", "速度模式", "力矩模式"], "位置模式");
         _communicationTimeout = UiFactory.Numeric(1000, 100, 30000, 0, 100);
         _autoReconnect = UiFactory.Combo(["启用", "禁用"], "启用");
+        _protocolMode = UiFactory.Combo(["DBC 文件", "原始字节协议"], "DBC 文件");
+        _dbcFilePath = UiFactory.TextBox();
 
-        _moduleIp = UiFactory.TextBox();
-        _modulePort = UiFactory.Numeric(502, 1, 65535);
+        _analogDevice = UiFactory.Combo([AnalogHardwareBaseline.DisplayName], AnalogHardwareBaseline.DisplayName);
+        _terminalBoard = UiFactory.Combo([AnalogHardwareBaseline.TerminalDisplayName], AnalogHardwareBaseline.TerminalDisplayName);
+        _analogBoardId = UiFactory.Numeric(0, 0, 15);
+        _analogInputMode = UiFactory.Combo(AnalogHardwareBaseline.SupportedInputModes, AnalogHardwareBaseline.DifferentialMode);
+        _analogScanRate = UiFactory.Numeric(100, 1, AnalogHardwareBaseline.MaximumSoftwareScanRateHz, 0, 10);
+        _analogReadTimeout = UiFactory.Numeric(500, 50, 30000, 0, 50);
         _sensorRange = UiFactory.Numeric(1000, 10, 100000, 1, 100);
-        _signalType = UiFactory.Combo(["4~20 mA", "0~10 V", "±10 V", "0~5 V"], "4~20 mA");
+        _signalType = UiFactory.Combo(AnalogHardwareBaseline.SupportedSignalTypes, AnalogHardwareBaseline.SupportedSignalTypes[0]);
+        _currentSignalType = UiFactory.Combo(AnalogHardwareBaseline.SupportedSignalTypes, AnalogHardwareBaseline.SupportedSignalTypes[0]);
+        _voltageSignalType = UiFactory.Combo(AnalogHardwareBaseline.SupportedSignalTypes, AnalogHardwareBaseline.SupportedSignalTypes[0]);
         _filterWindow = UiFactory.Numeric(5, 1, 100);
-        _forceChannel = UiFactory.Combo(["AI0", "AI1", "AI2", "AI3", "AI4", "AI5", "AI6", "AI7"], "AI0");
-        _currentChannel = UiFactory.Combo(["AI0", "AI1", "AI2", "AI3", "AI4", "AI5", "AI6", "AI7"], "AI1");
-        _voltageChannel = UiFactory.Combo(["AI0", "AI1", "AI2", "AI3", "AI4", "AI5", "AI6", "AI7"], "AI2");
-        _currentSensorRange = UiFactory.Numeric(20, 1, 5000, 1, 5);
-        _voltageSensorRange = UiFactory.Numeric(100, 1, 5000, 1, 10);
+        _displacementSignalType = UiFactory.Combo(AnalogHardwareBaseline.SupportedSignalTypes, AnalogHardwareBaseline.SupportedSignalTypes[1]);
+        _displacementSensorRange = UiFactory.Numeric(100, 1, 5000, 1, 10);
+        _currentSensorRange = UiFactory.Numeric(60, 1, 5000, 1, 5);
+        _voltageSensorRange = UiFactory.Numeric(30, 1, 5000, 1, 10);
 
         _maxForce = UiFactory.Numeric(650, 1, 100000, 1, 10);
-        _maxCurrent = UiFactory.Numeric(8, .1m, 1000, 1, .5m);
-        _maxVoltage = UiFactory.Numeric(60, 1, 10000, 1, 5);
+        _maxCurrent = UiFactory.Numeric(45, .1m, 1000, 1, .5m);
+        _maxVoltage = UiFactory.Numeric(16, 1, 10000, 1, 1);
+        _maxDisplacement = UiFactory.Numeric(85, .1m, 5000, 1, 1);
+        _resetTolerance = UiFactory.Numeric(2, 0, 100, 1, .5m);
         _overLimitDelay = UiFactory.Numeric(200, 0, 10000, 0, 50);
-        _positiveLimitInput = UiFactory.Combo(["DI0", "DI1", "DI2", "DI3", "禁用"], "DI0");
-        _negativeLimitInput = UiFactory.Combo(["DI0", "DI1", "DI2", "DI3", "禁用"], "DI1");
-        _safetyDoorInput = UiFactory.Combo(["DI0", "DI1", "DI2", "DI3", "禁用"], "DI2");
-        _overLimitAction = UiFactory.Combo(["立即停止并报警", "减速后停止", "仅记录"], "立即停止并报警");
+        _safetyDoorInput = UiFactory.Combo(Enumerable.Range(0, 16).Select(x => $"DI{x}").Append("禁用"), "DI10");
+        _overLimitAction = UiFactory.Combo(["立即停止并报警"], "立即停止并报警");
+        _stationGrid = BuildStationGrid();
 
         var tip = new CardPanel
         {
@@ -112,22 +141,23 @@ public sealed class SettingsPage : UserControl
         tip.Controls.Add(tipText);
         tip.Controls.Add(_saveState);
 
-        var content = new TableLayoutPanel
+        _content = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 2,
+            RowCount = 3,
             Padding = new Padding(0, 14, 0, 10),
             BackColor = Theme.Window,
             AutoScroll = true,
-            AutoScrollMinSize = new Size(0, 594)
+            AutoScrollMinSize = new Size(0, 1120)
         };
-        content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 300));
-        content.RowStyles.Add(new RowStyle(SizeType.Absolute, 318));
+        _content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        _content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        _content.RowStyles.Add(new RowStyle(SizeType.Absolute, 430));
+        _content.RowStyles.Add(new RowStyle(SizeType.Absolute, 420));
+        _content.RowStyles.Add(new RowStyle(SizeType.Absolute, 252));
 
-        content.Controls.Add(BuildCard("试验参数", "定义耐久循环目标、判定范围和动作时序",
+        _content.Controls.Add(BuildCard("试验参数", "定义耐久循环目标、判定范围和动作时序",
         [
             UiFactory.Field("项目名称", _projectName),
             UiFactory.Field("方案编号", _planCode),
@@ -138,46 +168,66 @@ public sealed class SettingsPage : UserControl
             UiFactory.Field("正向拉伸时间", _pullTime, "s"),
             UiFactory.Field("负载保持时间", _holdTime, "s"),
             UiFactory.Field("反向回程时间", _returnTime, "s"),
+            UiFactory.Field("动作间隔时间", _actionInterval, "s"),
             UiFactory.Field("采样周期", _sampleInterval, "ms")
         ]), 0, 0);
 
-        content.Controls.Add(BuildCard("CAN 与电机", "配置 CAN 接口、驱动器节点及运动参数",
+        _content.Controls.Add(BuildCard("CAN 与电机", "已冻结：周立功 USBCANFD-200U · USB 2.0 · 双通道",
         [
             UiFactory.Field("CAN 设备", _canDevice),
-            UiFactory.Field("通讯波特率", _baudRate),
-            UiFactory.Field("驱动器节点 ID", _nodeId),
+            UiFactory.Field("USB 设备索引", _canDeviceIndex),
+            UiFactory.Field("总线模式", _canBusMode),
+            UiFactory.Field("仲裁域波特率", _baudRate),
+            UiFactory.Field("数据域波特率", _canDataBaudRate),
+            UiFactory.Field("CAN FD 标准", _canFdStandard),
+            UiFactory.Field("内置终端电阻", _canTermination),
+            UiFactory.Field("卡发送超时", _canTransmitTimeout, "ms"),
             UiFactory.Field("电机速度", _motorSpeed, "rpm"),
             UiFactory.Field("加减速度", _motorAcceleration, "rpm/s"),
             UiFactory.Field("控制模式", _controlMode),
             UiFactory.Field("通讯超时", _communicationTimeout, "ms"),
-            UiFactory.Field("自动重连", _autoReconnect)
+            UiFactory.Field("自动重连", _autoReconnect),
+            UiFactory.Field("协议解析方式", _protocolMode),
+            UiFactory.Field("DBC 文件路径", _dbcFilePath)
         ]), 1, 0);
 
-        content.Controls.Add(BuildCard("模拟量采集", "配置拉力传感器与 Modbus TCP 采集模块",
+        _content.Controls.Add(BuildCard("模拟量采集", "已冻结：PCIE-1604 + P-881B；端子模式由焊接元件决定，软件只核对配置",
         [
-            UiFactory.Field("采集模块 IP", _moduleIp),
-            UiFactory.Field("Modbus 端口", _modulePort),
+            UiFactory.Field("模拟量采集卡", _analogDevice),
+            UiFactory.Field("数据接线端子", _terminalBoard),
+            UiFactory.Field("板卡拨码 ID", _analogBoardId),
+            UiFactory.Field("AI 输入方式", _analogInputMode),
+            UiFactory.Field("每通道扫描率", _analogScanRate, "Hz"),
+            UiFactory.Field("数据停滞超时", _analogReadTimeout, "ms"),
             UiFactory.Field("拉力信号类型", _signalType),
             UiFactory.Field("传感器满量程", _sensorRange, "N"),
-            UiFactory.Field("拉力通道", _forceChannel),
             UiFactory.Field("滤波窗口", _filterWindow, "点"),
-            UiFactory.Field("电流通道", _currentChannel),
+            UiFactory.Field("电流信号类型", _currentSignalType),
             UiFactory.Field("电流传感器量程", _currentSensorRange, "A"),
-            UiFactory.Field("电压通道", _voltageChannel),
-            UiFactory.Field("电压传感器量程", _voltageSensorRange, "V")
+            UiFactory.Field("电压信号类型", _voltageSignalType),
+            UiFactory.Field("电压传感器量程", _voltageSensorRange, "V"),
+            UiFactory.Field("位移信号类型", _displacementSignalType),
+            UiFactory.Field("位移传感器量程", _displacementSensorRange, "mm")
         ]), 0, 1);
 
-        content.Controls.Add(BuildCard("安全保护", "软件阈值用于联锁判断，不能替代硬件急停回路",
+        _content.Controls.Add(BuildCard("安全保护", "软件阈值用于联锁判断，不能替代硬件急停回路",
         [
             UiFactory.Field("拉力硬保护上限", _maxForce, "N"),
             UiFactory.Field("驱动电流上限", _maxCurrent, "A"),
             UiFactory.Field("母线电压上限", _maxVoltage, "V"),
+            UiFactory.Field("位移保护上限", _maxDisplacement, "mm"),
+            UiFactory.Field("复位位移容差", _resetTolerance, "mm"),
             UiFactory.Field("连续超限延时", _overLimitDelay, "ms"),
-            UiFactory.Field("正向限位输入", _positiveLimitInput),
-            UiFactory.Field("反向限位输入", _negativeLimitInput),
             UiFactory.Field("安全门输入", _safetyDoorInput),
-            UiFactory.Field("超限动作", _overLimitAction)
+            UiFactory.Field("超限动作（安全固定）", _overLimitAction)
         ]), 1, 1);
+
+        var stationCard = UiFactory.Card("工位硬件映射（2 个标准 + 1 个扩展）", "工位 1、2 为本期标准配置；扩展工位 3 默认停用，安装并完成标定、自检后方可启用");
+        stationCard.Dock = DockStyle.Fill;
+        stationCard.Margin = new Padding(0, 0, 8, 8);
+        stationCard.Controls.Add(_stationGrid);
+        _content.Controls.Add(stationCard, 0, 2);
+        _content.SetColumnSpan(stationCard, 2);
 
         var toolbar = new CardPanel { Dock = DockStyle.Bottom, Height = 66, Padding = new Padding(14, 8, 14, 8) };
         var buttonFlow = new TableLayoutPanel
@@ -225,7 +275,7 @@ public sealed class SettingsPage : UserControl
         toolbarLayout.Controls.Add(buttonFlow, 1, 0);
         toolbar.Controls.Add(toolbarLayout);
 
-        Controls.Add(content);
+        Controls.Add(_content);
         Controls.Add(toolbar);
         Controls.Add(tip);
 
@@ -234,6 +284,18 @@ public sealed class SettingsPage : UserControl
         defaultButton.Click += (_, _) => LoadValues(new TestSettings(), markDirty: true);
         testButton.Click += async (_, _) =>
         {
+            if (_engine.State is TestRunState.Running or TestRunState.Paused or TestRunState.Alarm)
+            {
+                MessageBox.Show("试验运行、暂停或报警锁存期间不能重新连接硬件。请先安全停机并复位。", "连接测试",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (_saveState.Text == "有未保存修改")
+            {
+                MessageBox.Show("当前页面还有未保存修改。请先保存参数，再执行连接测试；连接测试只使用已经保存并生效的配置。",
+                    "连接测试", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             testButton.Enabled = false;
             _saveState.Text = "正在连接测试...";
             try
@@ -251,8 +313,17 @@ public sealed class SettingsPage : UserControl
             }
         };
 
+        _canBusMode.SelectedIndexChanged += (_, _) => UpdateCanFdFieldState();
+
         WireDirtyTracking(this);
         LoadValues(settings);
+    }
+
+    internal void ShowStationGridForCapture()
+    {
+        _content.AutoScrollPosition = new Point(0, _content.AutoScrollMinSize.Height);
+        _content.PerformLayout();
+        _stationGrid.ClearSelection();
     }
 
     private static CardPanel BuildCard(string title, string subtitle, IReadOnlyList<Panel> fields)
@@ -275,8 +346,42 @@ public sealed class SettingsPage : UserControl
         return card;
     }
 
+    private static DataGridView BuildStationGrid()
+    {
+        var grid = UiFactory.Grid();
+        grid.Dock = DockStyle.Fill;
+        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+        grid.ReadOnly = false;
+        grid.AllowUserToAddRows = false;
+        grid.AllowUserToDeleteRows = false;
+        grid.RowHeadersVisible = false;
+        grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "Enabled", HeaderText = "启用", Width = 52 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "StationId", HeaderText = "编号", Width = 52, ReadOnly = true });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Role", HeaderText = "类型", Width = 78, ReadOnly = true });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Name", HeaderText = "工位名称", Width = 110 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "CanChannel", HeaderText = "CAN通道", Width = 75 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "CanNodeId", HeaderText = "节点ID", Width = 68 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "ForceChannel", HeaderText = "拉力AI+", Width = 72 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "CurrentChannel", HeaderText = "电流AI+", Width = 72 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "VoltageChannel", HeaderText = "电压AI+", Width = 72 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "DisplacementChannel", HeaderText = "位移AI+", Width = 72 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "PositiveLimit", HeaderText = "正限位DI", Width = 78 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "NegativeLimit", HeaderText = "反限位DI", Width = 78 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "CalibrationRecordId", HeaderText = "标定记录", Width = 110 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "ForceGain", HeaderText = "拉力K", Width = 68 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "ForceOffset", HeaderText = "拉力B", Width = 68 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "CurrentGain", HeaderText = "电流K", Width = 68 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "CurrentOffset", HeaderText = "电流B", Width = 68 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "VoltageGain", HeaderText = "电压K", Width = 68 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "VoltageOffset", HeaderText = "电压B", Width = 68 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "DisplacementGain", HeaderText = "位移K", Width = 68 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "DisplacementOffset", HeaderText = "位移B", Width = 68 });
+        return grid;
+    }
+
     private void LoadValues(TestSettings settings, bool markDirty = false)
     {
+        settings.EnsureStationConfigurations();
         _loading = true;
         _projectName.Text = settings.ProjectName;
         _planCode.Text = settings.PlanCode;
@@ -287,33 +392,66 @@ public sealed class SettingsPage : UserControl
         SetNumeric(_pullTime, settings.PullDuration);
         SetNumeric(_holdTime, settings.HoldDuration);
         SetNumeric(_returnTime, settings.ReturnDuration);
+        SetNumeric(_actionInterval, settings.ActionInterval);
         SetNumeric(_sampleInterval, settings.SampleInterval);
         _canDevice.SelectedItem = settings.CanDevice;
-        _baudRate.SelectedItem = $"{settings.CanBaudRate / 1000} kbps";
-        SetNumeric(_nodeId, settings.CanNodeId);
+        SetNumeric(_canDeviceIndex, settings.CanDeviceIndex);
+        _canBusMode.SelectedItem = settings.CanBusMode;
+        _baudRate.SelectedItem = FormatBaudRate(settings.CanBaudRate);
+        _canDataBaudRate.SelectedItem = FormatBaudRate(settings.CanDataBaudRate);
+        _canFdStandard.SelectedItem = settings.CanFdStandard;
+        _canTermination.SelectedItem = settings.CanTerminationEnabled ? "启用 120 Ω" : "禁用（默认）";
+        SetNumeric(_canTransmitTimeout, settings.CanTransmitTimeout);
+        UpdateCanFdFieldState();
         SetNumeric(_motorSpeed, settings.MotorSpeed);
         SetNumeric(_motorAcceleration, settings.MotorAcceleration);
         _controlMode.SelectedItem = settings.ControlMode;
         SetNumeric(_communicationTimeout, settings.CommunicationTimeout);
         _autoReconnect.SelectedItem = settings.AutoReconnect ? "启用" : "禁用";
-        _moduleIp.Text = settings.AnalogModuleIp;
-        SetNumeric(_modulePort, settings.AnalogModulePort);
+        _protocolMode.SelectedItem = settings.ProtocolMode;
+        _dbcFilePath.Text = settings.DbcFilePath;
+        _analogDevice.SelectedItem = settings.AnalogDevice;
+        _terminalBoard.SelectedItem = settings.AnalogTerminalBoard;
+        SetNumeric(_analogBoardId, settings.AnalogBoardId);
+        _analogInputMode.SelectedItem = settings.AnalogInputMode;
+        SetNumeric(_analogScanRate, settings.AnalogScanRate);
+        SetNumeric(_analogReadTimeout, settings.AnalogReadTimeout);
         SetNumeric(_sensorRange, settings.SensorRange);
         _signalType.SelectedItem = settings.ForceSignalType;
+        _currentSignalType.SelectedItem = settings.CurrentSignalType;
+        _voltageSignalType.SelectedItem = settings.VoltageSignalType;
         SetNumeric(_filterWindow, settings.FilterWindow);
-        _forceChannel.SelectedItem = settings.ForceChannel;
-        _currentChannel.SelectedItem = settings.CurrentChannel;
-        _voltageChannel.SelectedItem = settings.VoltageChannel;
+        _displacementSignalType.SelectedItem = settings.DisplacementSignalType;
+        SetNumeric(_displacementSensorRange, settings.DisplacementSensorRange);
         SetNumeric(_currentSensorRange, settings.CurrentSensorRange);
         SetNumeric(_voltageSensorRange, settings.VoltageSensorRange);
         SetNumeric(_maxForce, settings.MaxForceProtection);
         SetNumeric(_maxCurrent, settings.MaxCurrentProtection);
         SetNumeric(_maxVoltage, settings.MaxVoltageProtection);
+        SetNumeric(_maxDisplacement, settings.MaxDisplacementProtection);
+        SetNumeric(_resetTolerance, settings.ResetDisplacementTolerance);
         SetNumeric(_overLimitDelay, settings.OverLimitDelay);
-        _positiveLimitInput.SelectedItem = settings.PositiveLimitInput;
-        _negativeLimitInput.SelectedItem = settings.NegativeLimitInput;
         _safetyDoorInput.SelectedItem = settings.SafetyDoorInput;
         _overLimitAction.SelectedItem = settings.OverLimitAction;
+        _stationGrid.Rows.Clear();
+        foreach (var station in settings.Stations.OrderBy(x => x.StationId))
+        {
+            var rowIndex = _stationGrid.Rows.Add(station.Enabled, station.StationId,
+                StationTopology.IsExpansion(station.StationId) ? "预留扩展" : "标准",
+                station.Name, station.CanChannel,
+                station.CanNodeId, station.ForceChannel, station.CurrentChannel, station.VoltageChannel,
+                station.DisplacementChannel, station.PositiveLimitInput, station.NegativeLimitInput,
+                station.CalibrationRecordId,
+                station.ForceCalibrationGain, station.ForceCalibrationOffset,
+                station.CurrentCalibrationGain, station.CurrentCalibrationOffset,
+                station.VoltageCalibrationGain, station.VoltageCalibrationOffset,
+                station.DisplacementCalibrationGain, station.DisplacementCalibrationOffset);
+            if (StationTopology.IsExpansion(station.StationId))
+            {
+                _stationGrid.Rows[rowIndex].DefaultCellStyle.BackColor = Color.FromArgb(248, 245, 255);
+                _stationGrid.Rows[rowIndex].DefaultCellStyle.ForeColor = Theme.Purple;
+            }
+        }
         _loading = false;
         _saveState.Text = markDirty ? "有未保存修改" : "参数已加载";
         _saveState.ForeColor = markDirty ? Theme.Orange : Theme.Primary;
@@ -324,6 +462,12 @@ public sealed class SettingsPage : UserControl
 
     private void Save()
     {
+        if (_engine.State is TestRunState.Running or TestRunState.Paused or TestRunState.Alarm)
+        {
+            MessageBox.Show("试验运行、暂停或报警锁存期间不能修改生效参数。请先安全停机并复位。", "参数校验",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
         if (_forceLower.Value >= _forceUpper.Value)
         {
             MessageBox.Show("拉力下限必须小于拉力上限。", "参数校验", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -334,12 +478,6 @@ public sealed class SettingsPage : UserControl
             MessageBox.Show("目标拉力应位于拉力下限与上限之间。", "参数校验", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
-        if (!System.Net.IPAddress.TryParse(_moduleIp.Text.Trim(), out _))
-        {
-            MessageBox.Show("采集模块 IP 地址格式不正确。", "参数校验", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-
         var settings = new TestSettings
         {
             ProjectName = _projectName.Text.Trim(),
@@ -351,34 +489,48 @@ public sealed class SettingsPage : UserControl
             PullDuration = (double)_pullTime.Value,
             HoldDuration = (double)_holdTime.Value,
             ReturnDuration = (double)_returnTime.Value,
+            ActionInterval = (double)_actionInterval.Value,
             SampleInterval = (int)_sampleInterval.Value,
             CanDevice = _canDevice.Text,
-            CanBaudRate = int.Parse(_baudRate.Text.Split(' ')[0]) * 1000,
-            CanNodeId = (int)_nodeId.Value,
+            CanDeviceIndex = (int)_canDeviceIndex.Value,
+            CanBusMode = _canBusMode.Text,
+            CanBaudRate = ParseBaudRate(_baudRate.Text),
+            CanDataBaudRate = ParseBaudRate(_canDataBaudRate.Text),
+            CanFdStandard = _canFdStandard.Text,
+            CanTerminationEnabled = _canTermination.Text.StartsWith("启用", StringComparison.Ordinal),
+            CanTransmitTimeout = (int)_canTransmitTimeout.Value,
             MotorSpeed = (double)_motorSpeed.Value,
             MotorAcceleration = (double)_motorAcceleration.Value,
             ControlMode = _controlMode.Text,
             CommunicationTimeout = (int)_communicationTimeout.Value,
             AutoReconnect = _autoReconnect.Text == "启用",
-            AnalogModuleIp = _moduleIp.Text.Trim(),
-            AnalogModulePort = (int)_modulePort.Value,
+            ProtocolMode = _protocolMode.Text,
+            DbcFilePath = _dbcFilePath.Text.Trim(),
+            AnalogDevice = _analogDevice.Text,
+            AnalogTerminalBoard = _terminalBoard.Text,
+            AnalogBoardId = (int)_analogBoardId.Value,
+            AnalogInputMode = _analogInputMode.Text,
+            AnalogScanRate = (int)_analogScanRate.Value,
+            AnalogReadTimeout = (int)_analogReadTimeout.Value,
             SensorRange = (double)_sensorRange.Value,
             ForceSignalType = _signalType.Text,
+            CurrentSignalType = _currentSignalType.Text,
+            VoltageSignalType = _voltageSignalType.Text,
             FilterWindow = (int)_filterWindow.Value,
-            ForceChannel = _forceChannel.Text,
-            CurrentChannel = _currentChannel.Text,
-            VoltageChannel = _voltageChannel.Text,
+            DisplacementSignalType = _displacementSignalType.Text,
+            DisplacementSensorRange = (double)_displacementSensorRange.Value,
             CurrentSensorRange = (double)_currentSensorRange.Value,
             VoltageSensorRange = (double)_voltageSensorRange.Value,
             MaxForceProtection = (double)_maxForce.Value,
             MaxCurrentProtection = (double)_maxCurrent.Value,
             MaxVoltageProtection = (double)_maxVoltage.Value,
+            MaxDisplacementProtection = (double)_maxDisplacement.Value,
+            ResetDisplacementTolerance = (double)_resetTolerance.Value,
             OverLimitDelay = (int)_overLimitDelay.Value,
-            PositiveLimitInput = _positiveLimitInput.Text,
-            NegativeLimitInput = _negativeLimitInput.Text,
             SafetyDoorInput = _safetyDoorInput.Text,
             OverLimitAction = _overLimitAction.Text,
-            DataRecordInterval = 500
+            DataRecordInterval = 500,
+            Stations = ReadStations()
         };
         var validation = SettingsValidator.Validate(settings);
         if (!validation.Success)
@@ -390,6 +542,62 @@ public sealed class SettingsPage : UserControl
         _saveState.Text = $"已保存 {DateTime.Now:HH:mm:ss}";
         _saveState.ForeColor = Theme.Green;
         SettingsSaved?.Invoke(this, settings);
+    }
+
+    private List<StationConfiguration> ReadStations()
+    {
+        var stations = new List<StationConfiguration>();
+        foreach (DataGridViewRow row in _stationGrid.Rows)
+        {
+            if (!int.TryParse(Convert.ToString(row.Cells["StationId"].Value), out var stationId) ||
+                !StationTopology.IsSupported(stationId)) continue;
+            stations.Add(new StationConfiguration
+            {
+                StationId = stationId,
+                Enabled = Convert.ToBoolean(row.Cells["Enabled"].Value ?? false),
+                Name = Convert.ToString(row.Cells["Name"].Value)?.Trim() ?? $"工位 {stationId}",
+                CanChannel = int.TryParse(Convert.ToString(row.Cells["CanChannel"].Value), out var canChannel) ? canChannel : 0,
+                CanNodeId = int.TryParse(Convert.ToString(row.Cells["CanNodeId"].Value), out var nodeId) ? nodeId : stationId,
+                ForceChannel = Convert.ToString(row.Cells["ForceChannel"].Value)?.Trim() ?? string.Empty,
+                CurrentChannel = Convert.ToString(row.Cells["CurrentChannel"].Value)?.Trim() ?? string.Empty,
+                VoltageChannel = Convert.ToString(row.Cells["VoltageChannel"].Value)?.Trim() ?? string.Empty,
+                DisplacementChannel = Convert.ToString(row.Cells["DisplacementChannel"].Value)?.Trim() ?? string.Empty,
+                PositiveLimitInput = Convert.ToString(row.Cells["PositiveLimit"].Value)?.Trim() ?? string.Empty,
+                NegativeLimitInput = Convert.ToString(row.Cells["NegativeLimit"].Value)?.Trim() ?? string.Empty,
+                CalibrationRecordId = Convert.ToString(row.Cells["CalibrationRecordId"].Value)?.Trim() ?? "待标定",
+                ForceCalibrationGain = ReadDouble(row, "ForceGain", 1),
+                ForceCalibrationOffset = ReadDouble(row, "ForceOffset", 0),
+                CurrentCalibrationGain = ReadDouble(row, "CurrentGain", 1),
+                CurrentCalibrationOffset = ReadDouble(row, "CurrentOffset", 0),
+                VoltageCalibrationGain = ReadDouble(row, "VoltageGain", 1),
+                VoltageCalibrationOffset = ReadDouble(row, "VoltageOffset", 0),
+                DisplacementCalibrationGain = ReadDouble(row, "DisplacementGain", 1),
+                DisplacementCalibrationOffset = ReadDouble(row, "DisplacementOffset", 0)
+            });
+        }
+        return stations;
+    }
+
+    private static double ReadDouble(DataGridViewRow row, string columnName, double fallback) =>
+        double.TryParse(Convert.ToString(row.Cells[columnName].Value), out var value) ? value : fallback;
+
+    private static string FormatBaudRate(int baudRate) =>
+        baudRate >= 1_000_000 && baudRate % 1_000_000 == 0
+            ? $"{baudRate / 1_000_000} Mbps"
+            : $"{baudRate / 1000} kbps";
+
+    private static int ParseBaudRate(string text)
+    {
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2 || !int.TryParse(parts[0], out var value)) return 0;
+        return parts[1].StartsWith("M", StringComparison.OrdinalIgnoreCase) ? value * 1_000_000 : value * 1000;
+    }
+
+    private void UpdateCanFdFieldState()
+    {
+        var canFd = string.Equals(_canBusMode.Text, "CAN FD", StringComparison.Ordinal);
+        _canDataBaudRate.Enabled = canFd;
+        _canFdStandard.Enabled = canFd;
     }
 
     private void WireDirtyTracking(Control root)
@@ -406,6 +614,13 @@ public sealed class SettingsPage : UserControl
                     break;
                 case ComboBox combo:
                     combo.SelectedIndexChanged += (_, _) => MarkDirty();
+                    break;
+                case DataGridView grid:
+                    grid.CellValueChanged += (_, _) => MarkDirty();
+                    grid.CurrentCellDirtyStateChanged += (_, _) =>
+                    {
+                        if (grid.IsCurrentCellDirty) grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+                    };
                     break;
             }
             if (control.HasChildren) WireDirtyTracking(control);

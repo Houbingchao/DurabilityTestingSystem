@@ -11,14 +11,14 @@ public interface IHardwarePlatform : IAsyncDisposable
     SystemHealthSnapshot Health { get; }
     event EventHandler<SystemHealthSnapshot>? HealthChanged;
 
-    Task<OperationResult> ConnectAndSelfCheckAsync(TestSettings settings, CancellationToken cancellationToken = default);
-    Task<OperationResult> BeginPullAsync(TestSettings settings, CancellationToken cancellationToken = default);
-    Task<OperationResult> BeginHoldAsync(TestSettings settings, CancellationToken cancellationToken = default);
-    Task<OperationResult> BeginReturnAsync(TestSettings settings, CancellationToken cancellationToken = default);
-    Task<OperationResult> PauseAsync(CancellationToken cancellationToken = default);
-    Task<OperationResult> StopAsync(CancellationToken cancellationToken = default);
-    Task<OperationResult> ResetAsync(CancellationToken cancellationToken = default);
-    Task<LiveSample> ReadSampleAsync(int cycle, string phase, CancellationToken cancellationToken = default);
+    Task<OperationResult> ConnectAndSelfCheckAsync(SystemProfile profile, TestSettings settings, IReadOnlyCollection<int> stationIds, CancellationToken cancellationToken = default);
+    Task<OperationResult> BeginPullAsync(int stationId, TestSettings settings, CancellationToken cancellationToken = default);
+    Task<OperationResult> BeginHoldAsync(int stationId, TestSettings settings, CancellationToken cancellationToken = default);
+    Task<OperationResult> BeginReturnAsync(int stationId, TestSettings settings, CancellationToken cancellationToken = default);
+    Task<OperationResult> PauseAsync(int stationId, CancellationToken cancellationToken = default);
+    Task<OperationResult> StopAsync(int stationId, CancellationToken cancellationToken = default);
+    Task<OperationResult> ResetAsync(int stationId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<LiveSample>> ReadSamplesAsync(IReadOnlyCollection<int> stationIds, int cycle, string phase, CancellationToken cancellationToken = default);
 }
 
 public interface IHardwarePlatformFactory
@@ -49,21 +49,21 @@ public sealed class UnconfiguredHardwarePlatform : IHardwarePlatform
 
     public event EventHandler<SystemHealthSnapshot>? HealthChanged;
 
-    public Task<OperationResult> ConnectAndSelfCheckAsync(TestSettings settings, CancellationToken cancellationToken = default)
+    public Task<OperationResult> ConnectAndSelfCheckAsync(SystemProfile profile, TestSettings settings, IReadOnlyCollection<int> stationIds, CancellationToken cancellationToken = default)
     {
         HealthChanged?.Invoke(this, Health);
         return Task.FromResult(OperationResult.Fail(_reason));
     }
 
-    public Task<OperationResult> BeginPullAsync(TestSettings settings, CancellationToken cancellationToken = default) => Fail();
-    public Task<OperationResult> BeginHoldAsync(TestSettings settings, CancellationToken cancellationToken = default) => Fail();
-    public Task<OperationResult> BeginReturnAsync(TestSettings settings, CancellationToken cancellationToken = default) => Fail();
-    public Task<OperationResult> PauseAsync(CancellationToken cancellationToken = default) => Fail();
-    public Task<OperationResult> StopAsync(CancellationToken cancellationToken = default) => Task.FromResult(OperationResult.Ok("未配置硬件，无需停机。"));
-    public Task<OperationResult> ResetAsync(CancellationToken cancellationToken = default) => Fail();
+    public Task<OperationResult> BeginPullAsync(int stationId, TestSettings settings, CancellationToken cancellationToken = default) => Fail();
+    public Task<OperationResult> BeginHoldAsync(int stationId, TestSettings settings, CancellationToken cancellationToken = default) => Fail();
+    public Task<OperationResult> BeginReturnAsync(int stationId, TestSettings settings, CancellationToken cancellationToken = default) => Fail();
+    public Task<OperationResult> PauseAsync(int stationId, CancellationToken cancellationToken = default) => Fail();
+    public Task<OperationResult> StopAsync(int stationId, CancellationToken cancellationToken = default) => Task.FromResult(OperationResult.Ok($"工位 {stationId} 未配置硬件，无需停机。"));
+    public Task<OperationResult> ResetAsync(int stationId, CancellationToken cancellationToken = default) => Fail();
 
-    public Task<LiveSample> ReadSampleAsync(int cycle, string phase, CancellationToken cancellationToken = default) =>
-        Task.FromException<LiveSample>(new InvalidOperationException(_reason));
+    public Task<IReadOnlyList<LiveSample>> ReadSamplesAsync(IReadOnlyCollection<int> stationIds, int cycle, string phase, CancellationToken cancellationToken = default) =>
+        Task.FromException<IReadOnlyList<LiveSample>>(new InvalidOperationException(_reason));
 
     private Task<OperationResult> Fail() => Task.FromResult(OperationResult.Fail(_reason));
 

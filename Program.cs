@@ -31,7 +31,7 @@ internal static class Program
             database.Initialize(profile.Mode == RuntimeMode.Demo);
             ITestEngine engine = profile.Mode == RuntimeMode.Demo
                 ? new DemoTestEngine()
-                : new HardwareTestEngine(RuntimeProfileLoader.LoadHardwarePlatform(profile));
+                : new HardwareTestEngine(RuntimeProfileLoader.LoadHardwarePlatform(profile), profile);
             var mainForm = new MainForm(database, engine, profile);
             var captureArg = args.FirstOrDefault(x => x.StartsWith("--capture=", StringComparison.OrdinalIgnoreCase));
             if (captureArg is not null)
@@ -47,8 +47,15 @@ internal static class Program
                 mainForm.Size = new Size(Math.Max(1280, captureWidth), Math.Max(760, captureHeight));
                 mainForm.Show();
                 Application.DoEvents();
+                if (args.Any(x => string.Equals(x, "--self-check", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var selfCheck = engine.ConnectAndSelfCheckAsync().GetAwaiter().GetResult();
+                    database.AddLog(selfCheck.Success ? "信息" : "报警", "截图自检", selfCheck.Message);
+                }
                 mainForm.ShowPageForCapture(page);
-                var renderUntil = DateTime.UtcNow.AddMilliseconds(page == "control" ? 1800 : 450);
+                // Diagnostics may refresh several grids after a hardware self-check. Give
+                // non-control pages enough time to finish their WinForms layout before QA capture.
+                var renderUntil = DateTime.UtcNow.AddMilliseconds(page == "control" ? 1800 : 1000);
                 while (DateTime.UtcNow < renderUntil)
                 {
                     Application.DoEvents();
@@ -58,6 +65,8 @@ internal static class Program
                 using var bitmap = new Bitmap(mainForm.Width, mainForm.Height);
                 mainForm.DrawToBitmap(bitmap, new Rectangle(Point.Empty, mainForm.Size));
                 bitmap.Save(outputPath, System.Drawing.Imaging.ImageFormat.Png);
+                if (engine.State is TestRunState.Running or TestRunState.Paused)
+                    engine.StopAsync().GetAwaiter().GetResult();
                 mainForm.Close();
                 return;
             }

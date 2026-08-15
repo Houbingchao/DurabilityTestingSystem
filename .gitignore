@@ -4,3 +4,6 @@ publish/
 .vs/
 *.user
 *.suo
+
+# 厂家 SDK / 驱动运行库：请从原厂渠道取得，禁止随公开源码仓库分发。
+HardwareAdapter.ZlgUsbCanFd/Vendor/

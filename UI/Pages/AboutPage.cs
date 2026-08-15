@@ -6,6 +6,7 @@ namespace DurabilityTestingSystem.UI.Pages;
 
 public sealed class AboutPage : UserControl
 {
+    private const string SoftwareDisplayVersion = "1.3";
     private const string OrganizationName = "沈阳艾德瑞自动化有限公司";
     private const string Website = "http://www.aiderui.com.cn";
 
@@ -47,11 +48,11 @@ public sealed class AboutPage : UserControl
         };
         var systemLabel = UiFactory.Label("安全带耐久试验系统", 12, Color.White, FontStyle.Bold, DockStyle.Top);
         systemLabel.Height = 34;
-        var systemType = UiFactory.Label("工业控制上位机软件", 8.5f, Color.FromArgb(155, 181, 206), dock: DockStyle.Top);
+        var systemType = UiFactory.Label("三工位工业控制上位机软件", 8.5f, Color.FromArgb(155, 181, 206), dock: DockStyle.Top);
         systemType.Height = 30;
         var versionBadge = new StatusPill
         {
-            Caption = $"软件版本 V{Application.ProductVersion}",
+            Caption = $"软件版本 V{SoftwareDisplayVersion}",
             StatusColor = profile.Mode == RuntimeMode.Demo ? Theme.Orange : Theme.Green,
             Size = new Size(176, 32),
             Location = new Point(18, 98)
@@ -156,23 +157,32 @@ public sealed class AboutPage : UserControl
     private static CardPanel BuildSoftwareCard(SystemProfile profile)
     {
         var modeText = profile.Mode == RuntimeMode.Demo ? "Demo 演示模式" : "Production 正式模式";
+        var missingQualificationCount = profile.Qualification.MissingItems().Count;
+        var safetyLockText = missingQualificationCount == 0
+            ? "部署资格记录齐全 · 仍以在线自检为准"
+            : $"安全锁定 · Qualification 尚缺 {missingQualificationCount} 项";
         var card = UiFactory.Card("关于本软件", $"安全带耐久试验系统 · 工控机上位机 · {modeText}");
         card.Dock = DockStyle.Fill;
         card.Margin = new Padding(0, 7, 0, 0);
-        var info = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4, Padding = new Padding(0, 6, 0, 8) };
+        var info = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 6, Padding = new Padding(0, 6, 0, 8) };
         info.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
         info.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
         var values = new[]
         {
-            ("软件版本", $"V{Application.ProductVersion}  ·  {modeText}"),
-            ("运行平台", ".NET 8 · Windows x64"),
-            ("数据存储", "SQLite 本地数据库"),
-            ("技术架构", "WinForms · CAN · 模拟量采集")
+            ("软件版本", $"V{SoftwareDisplayVersion}  ·  {modeText}"),
+            ("运行平台", ".NET 8 · Windows x64 · SQLite"),
+            ("工位能力", "3 工位（2 个标准工位 + 1 个扩展工位）"),
+            ("CAN 接口", "周立功 USBCANFD-200U（USB）"),
+            ("模拟量采集", "新超仁达 PCIE-1604 + P-881B"),
+            ("部署安全锁", safetyLockText)
         };
         for (var i = 0; i < values.Length; i++)
         {
             var key = UiFactory.Label(values[i].Item1, 8.5f, Theme.Muted, FontStyle.Bold, DockStyle.Fill);
             var value = UiFactory.Label(values[i].Item2, 9, Theme.Text, FontStyle.Bold, DockStyle.Fill);
+            value.AutoEllipsis = true;
+            if (i == values.Length - 1)
+                value.ForeColor = missingQualificationCount == 0 ? Theme.Green : Theme.Red;
             info.Controls.Add(key, 0, i);
             info.Controls.Add(value, 1, i);
         }

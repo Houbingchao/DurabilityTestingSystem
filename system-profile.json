@@ -1,8 +1,18 @@
 {
+  "SchemaVersion": 2,
   "Mode": "Demo",
-  "ProfileName": "内置演示配置",
+  "ProfileName": "USBCANFD-200U + PCIE-1604/P-881B 三工位集成基线（演示模式）",
   "AutoConnectOnStartup": false,
-  "HardwareAdapterAssembly": "",
-  "HardwareAdapterType": "",
-  "Notes": "现场正式启用前，将 Mode 改为 Production，并填写硬件适配器程序集和类型。未配置适配器时正式模式会安全阻止试验启动。"
+  "HardwareAdapterAssembly": "DurabilityTestingSystem.HardwareAdapter.Site.dll",
+  "HardwareAdapterType": "DurabilityTestingSystem.HardwareAdapter.Site.SiteHardwarePlatform",
+  "Notes": "硬件型号已冻结。收到并验证PCIE-1604 x64 SDK、厂家书面确认P-881B配套关系、完成TTL安全信号隔离和电机DBC/字节协议联调前，必须保持Demo模式。",
+  "Qualification": {
+    "TerminalBoardCompatibilityApproved": false,
+    "Pcie1604SdkValidated": false,
+    "SafetySignalConditioningApproved": false,
+    "MotorProtocolValidated": false,
+    "ApprovedBy": "",
+    "ApprovedAt": null,
+    "EvidenceReference": ""
+  }
 }

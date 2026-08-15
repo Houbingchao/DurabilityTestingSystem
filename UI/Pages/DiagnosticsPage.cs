@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text;
 using DurabilityTestingSystem.Data;
 using DurabilityTestingSystem.Infrastructure;
@@ -13,10 +12,13 @@ public sealed class DiagnosticsPage : UserControl, IRefreshablePage
     private readonly ITestEngine _engine;
     private readonly SystemProfile _profile;
     private readonly DataGridView _grid;
+    private readonly DataGridView _qualificationGrid;
+    private readonly Button _checkButton;
     private readonly Label _summary;
     private readonly Label _profileValue;
     private readonly Label _databaseValue;
     private readonly Label _integrityValue;
+    private bool _selfCheckInProgress;
 
     public DiagnosticsPage(AppDatabase database, ITestEngine engine, SystemProfile profile)
     {
@@ -31,25 +33,30 @@ public sealed class DiagnosticsPage : UserControl, IRefreshablePage
         _summary = UiFactory.Label("等待检查", 8.5f, Theme.Muted);
         _summary.Location = new Point(18, 42);
         _summary.AutoSize = false;
-        _summary.Size = new Size(850, 42);
+        _summary.Size = new Size(700, 42);
+        _summary.AutoEllipsis = true;
         var actions = new FlowLayoutPanel { Dock = DockStyle.Right, Width = 470, FlowDirection = FlowDirection.LeftToRight, Padding = new Padding(0, 11, 0, 0) };
-        var checkButton = UiFactory.Button("连接与自检", Theme.Primary, Color.White, 120);
+        _checkButton = UiFactory.Button("连接与自检", Theme.Primary, Color.White, 120);
         var backupButton = UiFactory.SecondaryButton("备份数据库", 120);
         var exportButton = UiFactory.SecondaryButton("导出诊断信息", 130);
-        foreach (var button in new[] { checkButton, backupButton, exportButton })
+        foreach (var button in new[] { _checkButton, backupButton, exportButton })
         {
             button.Height = 36;
             button.Margin = new Padding(5);
             button.FlatAppearance.BorderSize = 1;
             button.FlatAppearance.BorderColor = Theme.Border;
         }
-        actions.Controls.AddRange([checkButton, backupButton, exportButton]);
+        actions.Controls.AddRange([_checkButton, backupButton, exportButton]);
         header.Controls.AddRange([title, _summary]);
         header.Controls.Add(actions);
         actions.BringToFront();
+        void FitSummaryToHeader() => _summary.Width = Math.Max(280, header.ClientSize.Width - actions.Width - 54);
+        header.ClientSizeChanged += (_, _) => FitSummaryToHeader();
+        FitSummaryToHeader();
 
-        var body = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2, ColumnCount = 1, Padding = new Padding(0, 14, 0, 0) };
-        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));
+        var body = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 3, ColumnCount = 1, Padding = new Padding(0, 14, 0, 0) };
+        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 174));
+        body.RowStyles.Add(new RowStyle(SizeType.Absolute, 264));
         body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var environmentCard = UiFactory.Card("运行环境", "正式交付前请核对模式、配置文件和数据库完整性");
@@ -64,9 +71,30 @@ public sealed class DiagnosticsPage : UserControl, IRefreshablePage
         _integrityValue = AddInfoRow(info, 3, "数据库完整性", "未检查");
         environmentCard.Controls.Add(info);
 
+        var qualificationCard = UiFactory.Card(
+            "部署资格与安全锁",
+            "缺失项来自 system-profile.json / Qualification；全部通过前正式生产试验保持安全锁定");
+        qualificationCard.Dock = DockStyle.Fill;
+        qualificationCard.Margin = new Padding(0, 7, 0, 7);
+        _qualificationGrid = UiFactory.Grid();
+        _qualificationGrid.ReadOnly = true;
+        _qualificationGrid.AutoGenerateColumns = false;
+        _qualificationGrid.ColumnHeadersHeight = 36;
+        _qualificationGrid.RowTemplate.Height = 34;
+        _qualificationGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "资格检查项", FillWeight = 52 });
+        _qualificationGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "状态", FillWeight = 14 });
+        _qualificationGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "说明", FillWeight = 34 });
+        _qualificationGrid.CellFormatting += (_, e) =>
+        {
+            if (e.ColumnIndex != 1 || e.Value is null || e.CellStyle is null) return;
+            e.CellStyle.ForeColor = Convert.ToString(e.Value) == "已通过" ? Theme.Green : Theme.Red;
+            e.CellStyle.Font = Theme.Font(8.5f, FontStyle.Bold);
+        };
+        qualificationCard.Controls.Add(_qualificationGrid);
+
         var deviceCard = UiFactory.Card("硬件状态", "状态来自当前硬件适配器；正式模式下任一关键设备异常都会阻止启动");
         deviceCard.Dock = DockStyle.Fill;
-        deviceCard.Margin = new Padding(0, 8, 0, 0);
+        deviceCard.Margin = new Padding(0, 7, 0, 0);
         _grid = UiFactory.Grid();
         _grid.ReadOnly = true;
         _grid.AutoGenerateColumns = false;
@@ -88,14 +116,24 @@ public sealed class DiagnosticsPage : UserControl, IRefreshablePage
         };
         deviceCard.Controls.Add(_grid);
         body.Controls.Add(environmentCard, 0, 0);
-        body.Controls.Add(deviceCard, 0, 1);
+        body.Controls.Add(qualificationCard, 0, 1);
+        body.Controls.Add(deviceCard, 0, 2);
 
         Controls.Add(body);
         Controls.Add(header);
 
-        checkButton.Click += async (_, _) =>
+        _checkButton.Click += async (_, _) =>
         {
-            checkButton.Enabled = false;
+            if (IsTestActive())
+            {
+                MessageBox.Show("试验正在运行或暂停保持中，禁止重新连接硬件。请先安全停止并复位试验。",
+                    "操作被安全锁阻止", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                UpdateCheckButtonState();
+                return;
+            }
+
+            _selfCheckInProgress = true;
+            UpdateCheckButtonState();
             try
             {
                 var result = await _engine.ConnectAndSelfCheckAsync();
@@ -104,7 +142,11 @@ public sealed class DiagnosticsPage : UserControl, IRefreshablePage
                 MessageBox.Show(result.Message, "设备自检", MessageBoxButtons.OK,
                     result.Success ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
             }
-            finally { checkButton.Enabled = true; }
+            finally
+            {
+                _selfCheckInProgress = false;
+                UpdateCheckButtonState();
+            }
         };
         backupButton.Click += (_, _) =>
         {
@@ -114,8 +156,9 @@ public sealed class DiagnosticsPage : UserControl, IRefreshablePage
         exportButton.Click += (_, _) => ExportDiagnostics();
         _engine.HealthChanged += (_, _) =>
         {
-            if (IsHandleCreated) BeginInvoke(new Action(RefreshData));
+            QueueRefresh();
         };
+        _engine.StateChanged += (_, _) => QueueRefresh();
     }
 
     public void RefreshData()
@@ -125,8 +168,22 @@ public sealed class DiagnosticsPage : UserControl, IRefreshablePage
         _databaseValue.Text = _database.DatabasePath;
         _integrityValue.Text = _database.CheckIntegrity();
         _integrityValue.ForeColor = _integrityValue.Text == "ok" ? Theme.Green : Theme.Red;
-        _summary.Text = health.Summary;
-        _summary.ForeColor = health.CanStartTest ? Theme.Green : Theme.Red;
+        RefreshQualificationGrid();
+        UpdateCheckButtonState();
+
+        var missingCount = _profile.Qualification.MissingItems().Count;
+        if (IsTestActive())
+        {
+            _summary.Text = "试验运行中：硬件重新连接与自检已被安全锁禁止，请先安全停止并复位。";
+            _summary.ForeColor = Theme.Orange;
+        }
+        else
+        {
+            _summary.Text = missingCount == 0
+                ? $"{health.Summary}  ·  部署资格已全部确认"
+                : $"{health.Summary}  ·  部署安全锁仍缺少 {missingCount} 项确认";
+            _summary.ForeColor = health.CanStartTest && missingCount == 0 ? Theme.Green : Theme.Red;
+        }
         _grid.Rows.Clear();
         foreach (var device in health.Devices)
             _grid.Rows.Add(device.Name, StateText(device.State), device.Message, device.UpdatedAt.ToString("yyyy-MM-dd HH:mm:ss"));
@@ -148,12 +205,67 @@ public sealed class DiagnosticsPage : UserControl, IRefreshablePage
             .AppendLine($"配置文件：{RuntimeProfileLoader.ProfilePath}")
             .AppendLine($"数据库：{_database.DatabasePath}")
             .AppendLine($"数据库完整性：{_database.CheckIntegrity()}")
-            .AppendLine($"系统摘要：{_engine.Health.Summary}");
+            .AppendLine($"系统摘要：{_engine.Health.Summary}")
+            .AppendLine()
+            .AppendLine("[部署资格与安全锁]");
+        var missingItems = _profile.Qualification.MissingItems();
+        if (missingItems.Count == 0)
+        {
+            text.AppendLine("状态：已通过（Qualification 无缺失项）")
+                .AppendLine($"批准人：{EmptyAsNotProvided(_profile.Qualification.ApprovedBy)}")
+                .AppendLine($"批准时间：{(_profile.Qualification.ApprovedAt?.ToString("O") ?? "未填写")}")
+                .AppendLine($"证据编号：{EmptyAsNotProvided(_profile.Qualification.EvidenceReference)}");
+        }
+        else
+        {
+            text.AppendLine($"状态：安全锁定（缺少 {missingItems.Count} 项）");
+            foreach (var item in missingItems)
+                text.AppendLine($"- {item}");
+        }
+        text.AppendLine()
+            .AppendLine("[硬件状态]");
         foreach (var device in _engine.Health.Devices)
             text.AppendLine($"{device.Name}：{device.State}；{device.Message}");
         File.WriteAllText(dialog.FileName, text.ToString(), new UTF8Encoding(true));
         _database.AddLog("信息", "设备诊断", $"导出诊断信息：{dialog.FileName}");
     }
+
+    private void RefreshQualificationGrid()
+    {
+        var qualification = _profile.Qualification;
+        var items = new (string Name, bool Passed)[]
+        {
+            ("PCIE-1604 与 P-881B 书面兼容确认", qualification.TerminalBoardCompatibilityApproved),
+            ("PCIE-1604 x64 SDK/驱动实机验证", qualification.Pcie1604SdkValidated),
+            ("TTL 安全信号隔离调理与硬件安全回路验收", qualification.SafetySignalConditioningApproved),
+            ("电机 DBC/字节协议及停机报文验证", qualification.MotorProtocolValidated)
+        };
+
+        _qualificationGrid.Rows.Clear();
+        foreach (var item in items)
+            _qualificationGrid.Rows.Add(item.Name, item.Passed ? "已通过" : "缺失", item.Passed ? "已有交付确认" : "正式模式保持安全锁定");
+    }
+
+    private bool IsTestActive() => _engine.State is TestRunState.Running or TestRunState.Paused or TestRunState.Alarm;
+
+    private void UpdateCheckButtonState()
+    {
+        var testActive = IsTestActive();
+        _checkButton.Enabled = !testActive && !_selfCheckInProgress;
+        _checkButton.Text = testActive ? "试验运行中" : _selfCheckInProgress ? "正在自检…" : "连接与自检";
+    }
+
+    private void QueueRefresh()
+    {
+        if (IsDisposed || !IsHandleCreated) return;
+        if (InvokeRequired)
+            BeginInvoke(new Action(RefreshData));
+        else
+            RefreshData();
+    }
+
+    private static string EmptyAsNotProvided(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "未填写" : value;
 
     private static Label AddInfoRow(TableLayoutPanel table, int row, string keyText, string valueText)
     {

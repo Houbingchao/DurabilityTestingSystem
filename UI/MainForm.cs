@@ -22,6 +22,9 @@ public sealed class MainForm : Form
     private readonly Dictionary<string, NavButton> _navButtons = [];
     private readonly Dictionary<string, Control> _pages = [];
     private readonly System.Windows.Forms.Timer _clockTimer;
+    private TestControlPage? _controlPage;
+    private bool _closeInProgress;
+    private bool _closeApproved;
 
     public MainForm(AppDatabase database, ITestEngine engine, SystemProfile profile)
     {
@@ -51,9 +54,19 @@ public sealed class MainForm : Form
         };
         Theme.EnableDoubleBuffer(_content);
 
-        Controls.Add(_content);
-        Controls.Add(footer);
-        Controls.Add(header);
+        // Keep the top/bottom chrome inside a dedicated main-area container.
+        // This removes the form-level Dock ordering dependency that could make
+        // the header cover the sidebar after a clock/status layout refresh.
+        var mainArea = new Panel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = Theme.Window
+        };
+        mainArea.Controls.Add(_content);
+        mainArea.Controls.Add(footer);
+        mainArea.Controls.Add(header);
+
+        Controls.Add(mainArea);
         Controls.Add(sidebar);
 
         CreatePages();
@@ -66,11 +79,7 @@ public sealed class MainForm : Form
         _clockTimer.Start();
         _clock.Text = DateTime.Now.ToString("yyyy-MM-dd  HH:mm:ss");
 
-        FormClosing += (_, _) =>
-        {
-            _clockTimer.Dispose();
-            _engine.Dispose();
-        };
+        FormClosing += MainFormOnFormClosing;
         Shown += async (_, _) =>
         {
             if (!_profile.AutoConnectOnStartup) return;
@@ -90,7 +99,7 @@ public sealed class MainForm : Form
         };
         var name = UiFactory.Label("安全带耐久试验", 11, Color.White, FontStyle.Bold);
         name.Location = new Point(78, 22);
-        var version = UiFactory.Label("TEST CONTROL  ·  V1.0", 7.5f, Theme.SidebarMuted);
+        var version = UiFactory.Label("TEST CONTROL  ·  V1.3", 7.5f, Theme.SidebarMuted);
         version.Location = new Point(78, 49);
         brand.Controls.AddRange([logo, name, version]);
 
@@ -175,7 +184,7 @@ public sealed class MainForm : Form
         clock.Margin = new Padding(0, 0, 14, 0);
         analog = new StatusPill { Caption = "采集未知", StatusColor = Theme.Muted, Margin = new Padding(4, 0, 4, 0), Width = 96 };
         can = new StatusPill { Caption = "CAN 未知", StatusColor = Theme.Muted, Margin = new Padding(4, 0, 16, 0), Width = 104 };
-        var user = UiFactory.SecondaryButton("●  管理员", 104);
+        var user = UiFactory.SecondaryButton("●  本机操作员", 112);
         user.Height = 32;
         user.Margin = new Padding(0);
         user.FlatAppearance.BorderSize = 1;
@@ -210,6 +219,7 @@ public sealed class MainForm : Form
     private void CreatePages()
     {
         var control = new TestControlPage(_database, _engine, () => _settings);
+        _controlPage = control;
         var settings = new SettingsPage(_database, _settings, _engine);
         settings.SettingsSaved += (_, updated) =>
         {
@@ -217,9 +227,16 @@ public sealed class MainForm : Form
             _engine.ApplySettings(updated);
             control.RefreshSettings();
         };
+        var plans = new PlansPage(_database, () => _settings);
+        plans.PlansChanged += (_, _) => control.RefreshPlans();
+        plans.PlanApplied += (_, args) =>
+        {
+            args.Result = control.ApplyPlan(args.Plan);
+            if (args.Result.Success) Navigate("control");
+        };
         _pages["control"] = control;
         _pages["settings"] = settings;
-        _pages["plans"] = new PlansPage(_database);
+        _pages["plans"] = plans;
         _pages["history"] = new HistoryPage(_database);
         _pages["logs"] = new LogsPage(_database);
         _pages["diagnostics"] = new DiagnosticsPage(_database, _engine, _profile);
@@ -256,10 +273,13 @@ public sealed class MainForm : Form
 
     internal void ShowPageForCapture(string key)
     {
-        if (!_pages.ContainsKey(key)) return;
-        Navigate(key);
-        if (key == "control" && _pages[key] is TestControlPage controlPage)
+        var pageKey = key == "settings-stations" ? "settings" : key;
+        if (!_pages.ContainsKey(pageKey)) return;
+        Navigate(pageKey);
+        if (pageKey == "control" && _pages[pageKey] is TestControlPage controlPage)
             controlPage.StartDemoForCapture();
+        if (key == "settings-stations" && _pages[pageKey] is SettingsPage settingsPage)
+            settingsPage.ShowStationGridForCapture();
     }
 
     private static Icon LoadApplicationIcon()
@@ -310,6 +330,56 @@ public sealed class MainForm : Form
         DeviceConnectionState.Disconnected => "离线",
         _ => "未配置"
     };
+
+    private async void MainFormOnFormClosing(object? sender, FormClosingEventArgs e)
+    {
+        if (_closeApproved) return;
+        if (_closeInProgress)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        if (_controlPage?.RequiresFinalization != true)
+        {
+            _closeApproved = true;
+            DisposeRuntimeResources();
+            return;
+        }
+
+        var answer = MessageBox.Show(
+            "当前试验尚未安全终结。关闭软件前将对全部工位执行停机，并保存终结记录。是否继续？",
+            "确认安全停机并关闭",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2);
+        if (answer != DialogResult.Yes)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        e.Cancel = true;
+        _closeInProgress = true;
+        Enabled = false;
+        var finalized = _controlPage is not null && await _controlPage.FinalizeBeforeCloseAsync();
+        if (!finalized)
+        {
+            Enabled = true;
+            _closeInProgress = false;
+            return;
+        }
+
+        _closeApproved = true;
+        DisposeRuntimeResources();
+        BeginInvoke(new Action(Close));
+    }
+
+    private void DisposeRuntimeResources()
+    {
+        _clockTimer.Dispose();
+        _engine.Dispose();
+    }
 }
 
 public interface IRefreshablePage

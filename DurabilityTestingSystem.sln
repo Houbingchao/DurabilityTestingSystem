@@ -5,6 +5,16 @@ VisualStudioVersion = 17.9.34622.214
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DurabilityTestingSystem", "DurabilityTestingSystem.csproj", "{94399940-A511-422B-90BE-CFB929FC2A6F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DurabilityTestingSystem.Contracts", "DurabilityTestingSystem.Contracts\DurabilityTestingSystem.Contracts.csproj", "{916C3917-8DC7-4403-AAD3-ACC901CCE4F8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DurabilityTestingSystem.HardwareAdapter.ZlgUsbCanFd", "HardwareAdapter.ZlgUsbCanFd\DurabilityTestingSystem.HardwareAdapter.ZlgUsbCanFd.csproj", "{B9340F31-C454-4999-9150-31A447656FC4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DurabilityTestingSystem.HardwareAdapter.Template", "HardwareAdapter.Template\DurabilityTestingSystem.HardwareAdapter.Template.csproj", "{F05C4186-BF3B-464C-AA7A-5628A6558DF4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DurabilityTestingSystem.HardwareAdapter.XinChaoRenDaPcie1604", "HardwareAdapter.XinChaoRenDaPcie1604\DurabilityTestingSystem.HardwareAdapter.XinChaoRenDaPcie1604.csproj", "{A1D445F0-8A4C-4D95-95EC-04DFAE7E4E31}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DurabilityTestingSystem.HardwareAdapter.Site", "HardwareAdapter.Site\DurabilityTestingSystem.HardwareAdapter.Site.csproj", "{7C413A5A-9B7C-4EE2-9EA4-8941EB30A97F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +25,26 @@ Global
 		{94399940-A511-422B-90BE-CFB929FC2A6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{94399940-A511-422B-90BE-CFB929FC2A6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{94399940-A511-422B-90BE-CFB929FC2A6F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{916C3917-8DC7-4403-AAD3-ACC901CCE4F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{916C3917-8DC7-4403-AAD3-ACC901CCE4F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{916C3917-8DC7-4403-AAD3-ACC901CCE4F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{916C3917-8DC7-4403-AAD3-ACC901CCE4F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9340F31-C454-4999-9150-31A447656FC4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9340F31-C454-4999-9150-31A447656FC4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9340F31-C454-4999-9150-31A447656FC4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9340F31-C454-4999-9150-31A447656FC4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F05C4186-BF3B-464C-AA7A-5628A6558DF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F05C4186-BF3B-464C-AA7A-5628A6558DF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F05C4186-BF3B-464C-AA7A-5628A6558DF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F05C4186-BF3B-464C-AA7A-5628A6558DF4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A1D445F0-8A4C-4D95-95EC-04DFAE7E4E31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1D445F0-8A4C-4D95-95EC-04DFAE7E4E31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1D445F0-8A4C-4D95-95EC-04DFAE7E4E31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1D445F0-8A4C-4D95-95EC-04DFAE7E4E31}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7C413A5A-9B7C-4EE2-9EA4-8941EB30A97F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7C413A5A-9B7C-4EE2-9EA4-8941EB30A97F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7C413A5A-9B7C-4EE2-9EA4-8941EB30A97F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7C413A5A-9B7C-4EE2-9EA4-8941EB30A97F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

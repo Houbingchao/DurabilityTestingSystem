@@ -13,16 +13,19 @@ public interface ITestEngine : IDisposable
     double PeakForce { get; }
     int CurrentCycle { get; }
     SystemHealthSnapshot Health { get; }
+    IReadOnlyList<int> ActiveStationIds { get; }
+    IReadOnlyDictionary<int, StationRuntimeStatus> StationStatuses { get; }
+    bool IsOperationInProgress { get; }
 
     event EventHandler<LiveSample>? SampleReceived;
     event EventHandler<TestRunState>? StateChanged;
     event EventHandler<SystemHealthSnapshot>? HealthChanged;
 
     void ApplySettings(TestSettings settings);
+    OperationResult ConfigureActiveStations(IReadOnlyCollection<int> stationIds);
     Task<OperationResult> ConnectAndSelfCheckAsync(CancellationToken cancellationToken = default);
     Task<OperationResult> StartAsync(CancellationToken cancellationToken = default);
     Task<OperationResult> PauseAsync(CancellationToken cancellationToken = default);
     Task<OperationResult> StopAsync(CancellationToken cancellationToken = default);
     Task<OperationResult> ResetAsync(CancellationToken cancellationToken = default);
 }
-

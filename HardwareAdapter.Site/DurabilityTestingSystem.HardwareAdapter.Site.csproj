@@ -5,9 +5,13 @@
     <Nullable>enable</Nullable>
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
-    <AssemblyName>DurabilityTestingSystem.HardwareAdapter.Template</AssemblyName>
+    <AssemblyName>DurabilityTestingSystem.HardwareAdapter.Site</AssemblyName>
+    <RootNamespace>DurabilityTestingSystem.HardwareAdapter.Site</RootNamespace>
   </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\DurabilityTestingSystem.Contracts\DurabilityTestingSystem.Contracts.csproj" />
+    <ProjectReference Include="..\HardwareAdapter.ZlgUsbCanFd\DurabilityTestingSystem.HardwareAdapter.ZlgUsbCanFd.csproj" />
+    <ProjectReference Include="..\HardwareAdapter.XinChaoRenDaPcie1604\DurabilityTestingSystem.HardwareAdapter.XinChaoRenDaPcie1604.csproj" />
   </ItemGroup>
 </Project>

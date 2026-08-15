@@ -9,6 +9,9 @@ public sealed class TrendChart : Control
     private const int MaxSamples = 240;
 
     public double ForceMax { get; set; } = 700;
+    public double CurrentMax { get; set; } = 60;
+    public double VoltageMax { get; set; } = 30;
+    public double DisplacementMax { get; set; } = 100;
     public IReadOnlyList<LiveSample> Samples => _samples;
 
     public TrendChart()
@@ -50,8 +53,9 @@ public sealed class TrendChart : Control
         }
 
         DrawSeries(e.Graphics, plot, s => s.Force, ForceMax, Theme.Primary, 2.2f);
-        DrawSeries(e.Graphics, plot, s => s.Current, 8, Theme.Orange, 1.8f);
-        DrawSeries(e.Graphics, plot, s => s.Voltage, 60, Theme.Green, 1.8f);
+        DrawSeries(e.Graphics, plot, s => s.Current, CurrentMax, Theme.Orange, 1.8f);
+        DrawSeries(e.Graphics, plot, s => s.Voltage, VoltageMax, Theme.Green, 1.8f);
+        DrawSeries(e.Graphics, plot, s => s.Displacement, DisplacementMax, Theme.Purple, 1.8f);
         DrawLatestMarker(e.Graphics, plot);
     }
 
@@ -64,16 +68,17 @@ public sealed class TrendChart : Control
         {
             ("拉力 (N)", Theme.Primary),
             ("电流 (A)", Theme.Orange),
-            ("电压 (V)", Theme.Green)
+            ("电压 (V)", Theme.Green),
+            ("位移 (mm)", Theme.Purple)
         };
-        var x = Math.Max(240, Width - 300);
+        var x = Math.Max(220, Width - 415);
         foreach (var (text, color) in items)
         {
             using var pen = new Pen(color, 3);
             g.DrawLine(pen, x, 24, x + 18, 24);
             using var brush = new SolidBrush(Theme.Muted);
             g.DrawString(text, Font, brush, x + 23, 17);
-            x += 94;
+            x += text.StartsWith("位移") ? 105 : 94;
         }
     }
 

@@ -10,9 +10,11 @@
     <ApplicationIcon>Assets\ADR.ico</ApplicationIcon>
     <AssemblyName>DurabilityTestingSystem</AssemblyName>
     <RootNamespace>DurabilityTestingSystem</RootNamespace>
-    <Version>1.0.0</Version>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <Version>1.3.0</Version>
+    <AssemblyVersion>1.3.0.0</AssemblyVersion>
+    <FileVersion>1.3.0.0</FileVersion>
     <!--
       The workspace also contains publish/output copies of the project.  Do not let
       the SDK's recursive **/*.cs glob compile generated AssemblyInfo files from
@@ -27,6 +29,14 @@
     <Compile Include="Infrastructure\**\*.cs" />
     <Compile Include="Models\**\*.cs" />
     <Compile Include="UI\**\*.cs" />
+    <Compile Remove="Infrastructure\HardwareInterfaces.cs" />
+    <Compile Remove="Infrastructure\HardwarePlatform.cs" />
+    <Compile Remove="Models\SystemModels.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="DurabilityTestingSystem.Contracts\DurabilityTestingSystem.Contracts.csproj" />
+    <ProjectReference Include="HardwareAdapter.Site\DurabilityTestingSystem.HardwareAdapter.Site.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -49,6 +59,10 @@
 
   <ItemGroup>
     <None Remove="HardwareAdapter.Template\**" />
+    <None Remove="HardwareAdapter.ZlgUsbCanFd\**" />
+    <None Remove="HardwareAdapter.XinChaoRenDaPcie1604\**" />
+    <None Remove="HardwareAdapter.Site\**" />
+    <None Remove="DurabilityTestingSystem.Contracts\**" />
   </ItemGroup>
 
 </Project>

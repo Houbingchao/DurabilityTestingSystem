@@ -1,4 +1,5 @@
 using DurabilityTestingSystem.Data;
+using DurabilityTestingSystem.Infrastructure;
 using DurabilityTestingSystem.Models;
 using DurabilityTestingSystem.UI.Controls;
 
@@ -7,6 +8,7 @@ namespace DurabilityTestingSystem.UI.Pages;
 public sealed class PlansPage : UserControl, IRefreshablePage
 {
     private readonly AppDatabase _database;
+    private readonly Func<TestSettings> _getSettings;
     private readonly DataGridView _planGrid;
     private readonly DataGridView _stepGrid;
     private readonly TextBox _code;
@@ -16,9 +18,13 @@ public sealed class PlansPage : UserControl, IRefreshablePage
     private readonly CheckBox _enabled;
     private long _selectedId;
 
-    public PlansPage(AppDatabase database)
+    public event EventHandler? PlansChanged;
+    public event EventHandler<PlanAppliedEventArgs>? PlanApplied;
+
+    public PlansPage(AppDatabase database, Func<TestSettings> getSettings)
     {
         _database = database;
+        _getSettings = getSettings;
         BackColor = Theme.Window;
 
         var toolbar = new CardPanel { Dock = DockStyle.Top, Height = 64, Padding = new Padding(16, 11, 16, 10) };
@@ -119,7 +125,7 @@ public sealed class PlansPage : UserControl, IRefreshablePage
         {
             HeaderText = "动作类型",
             FillWeight = 24,
-            DataSource = new[] { "正向拉伸", "负载保持", "反向回程", "等待", "循环计数" }
+            DataSource = new[] { "CAN 动作", "正向拉伸", "负载保持", "反向回程", "弹簧复位确认", "等待", "报警判定", "循环计数" }
         });
         _stepGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "目标值", FillWeight = 18 });
         _stepGrid.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "持续时间 (s)", FillWeight = 18 });
@@ -151,8 +157,12 @@ public sealed class PlansPage : UserControl, IRefreshablePage
         newButton.Click += (_, _) => NewPlan();
         duplicateButton.Click += (_, _) => DuplicatePlan();
         importButton.Click += (_, _) => MessageBox.Show("Demo 版本已预留 Excel/JSON 方案模板导入入口。", "导入模板", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        saveButton.Click += (_, _) => SavePlan();
-        applyButton.Click += (_, _) => MessageBox.Show("方案参数已加载到当前试验。\n请在“试验控制”页面确认试件编号后启动。", "应用方案", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        saveButton.Click += (_, _) =>
+        {
+            if (TrySavePlan(out _, out _))
+                MessageBox.Show("方案及步骤已保存。", "保存方案", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        };
+        applyButton.Click += (_, _) => ApplyCurrentPlan();
         addStep.Click += (_, _) => _stepGrid.Rows.Add(_stepGrid.Rows.Count + 1, "等待", "—", "1.0", "时间到");
         deleteStep.Click += (_, _) =>
         {
@@ -160,6 +170,7 @@ public sealed class PlansPage : UserControl, IRefreshablePage
             RenumberSteps();
         };
         _planGrid.SelectionChanged += (_, _) => LoadSelectedPlan();
+        _force.ValueChanged += (_, _) => SynchronizeForceTargets();
     }
 
     public void RefreshData()
@@ -209,20 +220,56 @@ public sealed class PlansPage : UserControl, IRefreshablePage
         _name.Focus();
     }
 
-    private void SavePlan()
+    private void ApplyCurrentPlan()
     {
+        if (!TrySavePlan(out var savedPlan, out var savedSteps) || savedPlan is null) return;
+
+        var compilation = TestPlanCompiler.Compile(savedPlan, savedSteps, _getSettings());
+        if (!compilation.Success || compilation.Plan is null)
+        {
+            MessageBox.Show(
+                $"方案已经保存，但未应用到当前试验。\n\n{compilation.Message}",
+                "方案不允许应用",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        var args = new PlanAppliedEventArgs(compilation.Plan);
+        PlanApplied?.Invoke(this, args);
+        if (!args.Result.Success)
+        {
+            MessageBox.Show(
+                $"方案已经保存并通过校验，但当前试验页拒绝应用。\n\n{args.Result.Message}",
+                "应用方案失败",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        MessageBox.Show(
+            $"方案“{savedPlan.Name}”已保存并应用到当前试验。\n启动前系统还会从数据库重新读取并冻结一次参数快照。",
+            "应用方案",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
+    }
+
+    private bool TrySavePlan(out TestPlan? savedPlan, out IReadOnlyList<TestPlanStep> savedSteps)
+    {
+        savedPlan = null;
+        savedSteps = [];
         if (string.IsNullOrWhiteSpace(_code.Text) || string.IsNullOrWhiteSpace(_name.Text))
         {
             MessageBox.Show("方案编号和方案名称不能为空。", "方案校验", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            return false;
         }
         var steps = ReadSteps();
         if (steps.Count == 0)
         {
             MessageBox.Show("试验方案至少需要一个循环步骤。", "方案校验", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            return false;
         }
-        var planId = _database.UpsertPlan(new TestPlan
+        var plan = new TestPlan
         {
             Id = _selectedId,
             Code = _code.Text.Trim(),
@@ -231,10 +278,26 @@ public sealed class PlansPage : UserControl, IRefreshablePage
             TargetForce = (double)_force.Value,
             Enabled = _enabled.Checked,
             UpdatedAt = DateTime.Now
-        });
-        _database.SavePlanSteps(planId, steps);
+        };
+        long planId;
+        try
+        {
+            planId = _database.UpsertPlan(plan);
+            _database.SavePlanSteps(planId, steps);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"方案保存失败：\n\n{ex.Message}", "方案保存", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return false;
+        }
         _selectedId = planId;
+        plan = _database.GetPlans().First(x => x.Id == planId);
+        foreach (var step in steps) step.PlanId = planId;
+        savedPlan = plan;
+        savedSteps = steps;
         RefreshData();
+        PlansChanged?.Invoke(this, EventArgs.Empty);
+        return true;
     }
 
     private IReadOnlyList<TestPlanStep> ReadSteps()
@@ -281,15 +344,34 @@ public sealed class PlansPage : UserControl, IRefreshablePage
     private void LoadDefaultSteps()
     {
         _stepGrid.Rows.Clear();
-        _stepGrid.Rows.Add("1", "正向拉伸", "450 N", "2.0", "达到目标拉力");
-        _stepGrid.Rows.Add("2", "负载保持", "450 N", "1.0", "保持时间到");
+        var target = $"{_force.Value:0.###} N";
+        _stepGrid.Rows.Add("1", "正向拉伸", target, "2.0", "达到目标拉力");
+        _stepGrid.Rows.Add("2", "负载保持", target, "1.0", "保持时间到");
         _stepGrid.Rows.Add("3", "反向回程", "0 mm", "2.0", "到达原点");
-        _stepGrid.Rows.Add("4", "等待", "—", "0.2", "时间到");
-        _stepGrid.Rows.Add("5", "循环计数", "+1", "0", "进入下一循环");
+        _stepGrid.Rows.Add("4", "弹簧复位确认", "≤2 mm", "0", "位移回零，否则报警");
+        _stepGrid.Rows.Add("5", "等待", "—", "0.5", "动作间隔时间到");
+        _stepGrid.Rows.Add("6", "循环计数", "+1", "0", "进入下一循环");
     }
 
     private void RenumberSteps()
     {
         for (var i = 0; i < _stepGrid.Rows.Count; i++) _stepGrid.Rows[i].Cells[0].Value = i + 1;
     }
+
+    private void SynchronizeForceTargets()
+    {
+        var target = $"{_force.Value:0.###} N";
+        foreach (DataGridViewRow row in _stepGrid.Rows)
+        {
+            if (row.IsNewRow) continue;
+            var action = Convert.ToString(row.Cells[1].Value)?.Trim();
+            if (action is "正向拉伸" or "负载保持") row.Cells[2].Value = target;
+        }
+    }
+}
+
+public sealed class PlanAppliedEventArgs(CompiledTestPlan plan) : EventArgs
+{
+    public CompiledTestPlan Plan { get; } = plan;
+    public OperationResult Result { get; set; } = OperationResult.Fail("当前试验页未处理方案应用请求。");
 }
